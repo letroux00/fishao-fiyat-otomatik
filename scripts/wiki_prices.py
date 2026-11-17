@@ -35,16 +35,24 @@ def get_json(url, data=None, headers=None, timeout=30):
         return json.loads(r.read())
 
 
+def retry_after(e):
+    try:
+        return min(max(int(e.headers.get("Retry-After", 60)), 5), 300)
+    except (TypeError, ValueError):
+        return 60
+
+
 def fetch_market(fid):
     """(price, change) for one fish; None if the wiki has no such fish or no market price."""
-    for attempt in range(3):
+    for attempt in range(6):
         try:
             page = get_json(WIKI.format(fid))
             break
-        except (urllib.error.URLError, TimeoutError, ValueError):
-            if attempt == 2:
+        except (urllib.error.URLError, TimeoutError, ValueError) as e:
+            if attempt == 5:
                 raise
-            time.sleep(5)
+            # 429: the wiki is rate limiting; wait as long as it asks (or a minute)
+            time.sleep(retry_after(e) if getattr(e, "code", None) == 429 else 5)
     node = page["nodes"][-1]
     if not node or node.get("type") != "data":
         return None

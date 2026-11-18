@@ -99,6 +99,7 @@ def main():
     if not fish:
         sys.exit("No prices from the wiki." + (f" Failed: {', '.join(failed[:10])}" if failed else ""))
 
+    LAST_FILE.parent.mkdir(parents=True, exist_ok=True)
     LAST_FILE.write_text(json.dumps({"date": day, "prices": {f["id"]: f["price"] for f in fish}}), encoding="utf-8")
     changed = sum(1 for f in fish if before.get(f["id"]) not in (None, f["price"]))
     print(f"{len(fish)} fish priced ({day})" + (f"; {changed} changed since the previous day." if before else "."))

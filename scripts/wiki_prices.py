@@ -122,3 +122,25 @@ def upload_to_site(url, key, fish):
             return r.json()
         except Exception as e:
             if attempt == 2:
+                sys.exit(f"Site unreachable or upload failed: {e}")
+            time.sleep(15)
+
+
+def main():
+    url = os.environ.get("FISHAO_SITE_URL", "").rstrip("/")
+    key = os.environ.get("FISHAO_UPLOAD_KEY", "")
+    if not url or not key:
+        sys.exit("FISHAO_SITE_URL and FISHAO_UPLOAD_KEY are required.")
+    fish_list = json.loads((HERE / "wiki_fish.json").read_text(encoding="utf-8"))
+    day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    last = json.loads(LAST_FILE.read_text(encoding="utf-8")) if LAST_FILE.exists() else {}
+    before = {int(k): v for k, v in last.get("prices", {}).items()} if last.get("date") != day else {}
+
+    for attempt in range(UNCHANGED_RETRIES + 1):
+        fish, failed = fetch_all(fish_list)
+        same = bool(before) and all(before.get(f["id"]) == f["price"] for f in fish)
+        if not same or attempt == UNCHANGED_RETRIES:
+            break
+        print(f"All prices equal previous day; wiki may not have turned day yet. Retrying in {UNCHANGED_WAIT_SEC // 60} min.")
+        time.sleep(UNCHANGED_WAIT_SEC)
+    if not fish:

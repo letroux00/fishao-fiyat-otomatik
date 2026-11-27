@@ -67,7 +67,6 @@ def fetch_market(fid):
             if r.status_code == 200:
                 page = r.json()
                 break
-            # 403 veya 429 gelirse diğer proxy'ye geç
             rotate_proxy()
             time.sleep(0.5)
         except Exception:
@@ -144,3 +143,22 @@ def main():
         print(f"All prices equal previous day; wiki may not have turned day yet. Retrying in {UNCHANGED_WAIT_SEC // 60} min.")
         time.sleep(UNCHANGED_WAIT_SEC)
     if not fish:
+        sys.exit("No prices from the wiki." + (f" Failed: {', '.join(failed[:10])}" if failed else ""))
+
+    LAST_FILE.parent.mkdir(parents=True, exist_ok=True)
+    LAST_FILE.write_text(json.dumps({"date": day, "prices": {f["id"]: f["price"] for f in fish}}), encoding="utf-8")
+    changed = sum(1 for f in fish if before.get(f["id"]) not in (None, f["price"]))
+    print(f"{len(fish)} fish priced ({day})" + (f"; {changed} changed since previous day." if before else "."))
+    if same:
+        print("Warning: prices still equal previous day.")
+    if failed:
+        print(f"Could not fetch {len(failed)} fish: {', '.join(failed[:20])}")
+
+    r = upload_to_site(url, key, fish)
+    print(f"Uploaded: {r.get('saved')} fish for {r.get('day')}.")
+    if r.get("missed"):
+        print(f"Not matched on the site ({len(r['missed'])}): {', '.join(r['missed'])}")
+
+
+if __name__ == "__main__":
+    main()

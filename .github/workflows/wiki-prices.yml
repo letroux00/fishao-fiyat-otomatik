@@ -18,12 +18,14 @@ concurrency:
 jobs:
   upload:
     runs-on: ubuntu-latest
-    timeout-minutes: 75
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - name: Install dependencies
+        run: pip install curl_cffi
       - run: python scripts/wiki_prices.py
         env:
           FISHAO_SITE_URL: https://fishao-fiyat.onrender.com
